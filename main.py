@@ -27,6 +27,8 @@ class PermutationConfig:
     """Configuration for permutation generation and moves."""
     length: int = 6
     moves: Dict[str, str] = None
+    system_prompt: Optional[str] = None
+    main_prompt_template: Optional[str] = None
     
     def __post_init__(self):
         if self.moves is None:
@@ -215,7 +217,7 @@ class OpenAIClient(LLMClient):
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0.7,
-            max_tokens=4096
+            max_completion_tokens=4096
         )
         return response.choices[0].message.content
 
@@ -439,8 +441,16 @@ class PermutationSolver:
         """Generate a sorting algorithm using the LLM."""
         length = vector_length or self.config.length
         
-        system_prompt = get_system_prompt()
-        main_prompt = get_main_prompt(length)
+        # Use custom prompts from config if provided, otherwise use defaults
+        system_prompt = self.config.system_prompt or get_system_prompt()
+        
+        if self.config.main_prompt_template:
+            # Format custom template with default_vector
+            default_vector = list(range(length))
+            random.shuffle(default_vector)
+            main_prompt = self.config.main_prompt_template.format(default_vector=default_vector)
+        else:
+            main_prompt = get_main_prompt(length)
         
         print(f"Generating algorithm using {self.llm_client.name}...")
         self.raw_response = self.llm_client.generate(system_prompt, main_prompt)
